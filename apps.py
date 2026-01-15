@@ -118,13 +118,30 @@ if check_password():
         
         /* Section Headers */
         .section-header {{
-            color: {colors['text_primary']};
+            color: {colors['text_primary']} !important;
             font-weight: 700;
             padding: 16px 0;
             margin: 24px 0 16px 0;
             font-size: 24px;
             letter-spacing: 0.1px;
             border-bottom: 2px solid {colors['primary']};
+        }}
+        
+        /* Fix text visibility in light mode */
+        h1, h2, h3, h4, h5, h6, p, span, div, label {{
+            color: {colors['text_primary']} !important;
+        }}
+        
+        .stMarkdown {{
+            color: {colors['text_primary']} !important;
+        }}
+        
+        [data-testid="stMarkdownContainer"] {{
+            color: {colors['text_primary']} !important;
+        }}
+        
+        .stCaption {{
+            color: {colors['text_secondary']} !important;
         }}
         
         /* Card Content */
@@ -195,6 +212,11 @@ if check_password():
             font-weight: 700 !important;
         }}
         
+        /* Title styling */
+        h1 {{
+            color: {colors['text_primary']} !important;
+        }}
+        
         /* Sidebar Styling */
         [data-testid="stSidebar"] {{
             background: {colors['surface']};
@@ -204,6 +226,14 @@ if check_password():
         [data-testid="stSidebar"] .stSelectbox label {{
             color: {colors['text_primary']} !important;
             font-weight: 500 !important;
+        }}
+        
+        [data-testid="stSidebar"] h1 {{
+            color: {colors['text_primary']} !important;
+        }}
+        
+        [data-testid="stSidebar"] * {{
+            color: {colors['text_primary']} !important;
         }}
         
         /* Buttons */
