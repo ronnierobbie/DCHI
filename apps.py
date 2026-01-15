@@ -1,309 +1,305 @@
 import streamlit as st
 import pandas as pd
+from io import BytesIO
 
-# --- 1. Page Configuration ---
-st.set_page_config(page_title="Court Hardware Dashboard", layout="wide")
+# ======================================================
+# PAGE CONFIG
+# ======================================================
+st.set_page_config(
+    page_title="Court Inventory Dashboard",
+    layout="wide",
+)
 
-# ==========================================
-# 🔒 PASSWORD PROTECTION SECTION
-# ==========================================
+# ======================================================
+# PASSWORD PROTECTION
+# ======================================================
 def check_password():
-    """Returns `True` if the user had the correct password."""
-
     def password_entered():
-        # ----------------------------------------------------
-        # CHANGE YOUR PASSWORD HERE:
-        if st.session_state["password"] == "court2026": 
-        # ----------------------------------------------------
-            st.session_state["password_correct"] = True
-            del st.session_state["password"]  # clean up
-        else:
-            st.session_state["password_correct"] = False
+        st.session_state["password_correct"] = (
+            st.session_state["password"] == "court2026"
+        )
+        del st.session_state["password"]
 
     if "password_correct" not in st.session_state:
-        # First run, show input for password.
         st.text_input(
-            "Please enter the dashboard password:", type="password", on_change=password_entered, key="password"
+            "Please enter the dashboard password:",
+            type="password",
+            on_change=password_entered,
+            key="password",
         )
         return False
-    elif not st.session_state["password_correct"]:
-        # Password incorrect, show input again.
+
+    if not st.session_state["password_correct"]:
         st.text_input(
-            "Please enter the dashboard password:", type="password", on_change=password_entered, key="password"
+            "Please enter the dashboard password:",
+            type="password",
+            on_change=password_entered,
+            key="password",
         )
-        st.error("😕 Password incorrect")
+        st.error("Password incorrect")
         return False
+
+    return True
+
+
+# ======================================================
+# MATERIAL 3 THEME SYSTEM
+# ======================================================
+def inject_material_theme(theme: str):
+    if theme == "Dark":
+        palette = {
+            "primary": "#D0BCFF",
+            "on_primary": "#381E72",
+            "surface": "#1C1B1F",
+            "surface_variant": "#49454F",
+            "background": "#141218",
+            "on_surface": "#E6E1E5",
+            "error": "#F2B8B5",
+            "secondary": "#CCC2DC",
+        }
     else:
-        # Password correct.
-        return True
+        palette = {
+            "primary": "#6750A4",
+            "on_primary": "#FFFFFF",
+            "surface": "#FFFBFE",
+            "surface_variant": "#E7E0EC",
+            "background": "#F5F3F7",
+            "on_surface": "#1C1B1F",
+            "error": "#B3261E",
+            "secondary": "#625B71",
+        }
 
+    st.markdown(
+        f"""
+        <style>
+        :root {{
+            --md-primary: {palette["primary"]};
+            --md-on-primary: {palette["on_primary"]};
+            --md-surface: {palette["surface"]};
+            --md-surface-variant: {palette["surface_variant"]};
+            --md-background: {palette["background"]};
+            --md-on-surface: {palette["on_surface"]};
+            --md-error: {palette["error"]};
+            --md-secondary: {palette["secondary"]};
+        }}
+
+        .stApp {{
+            background-color: var(--md-background);
+            color: var(--md-on-surface);
+            font-family: Roboto, Segoe UI, sans-serif;
+        }}
+
+        .material-card {{
+            background-color: var(--md-surface);
+            border-radius: 16px;
+            padding: 16px;
+            box-shadow: 0px 1px 3px rgba(0,0,0,0.3);
+            border: 1px solid var(--md-surface-variant);
+            margin-bottom: 16px;
+        }}
+
+        .card-title {{
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--md-secondary);
+            text-transform: uppercase;
+            margin-bottom: 4px;
+        }}
+
+        .card-value {{
+            font-size: 22px;
+            font-weight: 600;
+        }}
+
+        .badge {{
+            margin-top: 8px;
+            display: inline-block;
+            padding: 6px 14px;
+            border-radius: 999px;
+            font-size: 11px;
+            font-weight: 500;
+        }}
+
+        .badge-green {{
+            background-color: #1E4620;
+            color: #C8E6C9;
+        }}
+
+        .badge-red {{
+            background-color: var(--md-error);
+            color: #000000;
+        }}
+
+        .badge-grey {{
+            background-color: var(--md-surface-variant);
+        }}
+
+        .section-header {{
+            font-size: 22px;
+            font-weight: 600;
+            color: var(--md-primary);
+            margin: 32px 0 16px;
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+# ======================================================
+# MATERIAL ICONS (INLINE SVG)
+# ======================================================
+def material_icon(name):
+    icons = {
+        "court": """<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M3 21h18v-2H3v2zm2-4h14V3H5v14zm2-2V5h10v10H7z"/></svg>""",
+        "download": """<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M5 20h14v-2H5v2zm7-18l-5 5h3v6h4v-6h3l-5-5z"/></svg>""",
+    }
+    return icons.get(name, "")
+
+
+# ======================================================
+# MATERIAL CARD COMPONENTS
+# ======================================================
+def metric_card(title, value, icon=None):
+    icon_html = material_icon(icon) if icon else ""
+    st.markdown(
+        f"""
+        <div class="material-card">
+            <div>{icon_html}</div>
+            <div class="card-title">{title}</div>
+            <div class="card-value">{value}</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def hardware_card(title, distributed, required, balance):
+    if balance > 0:
+        cls, txt = "badge-green", "Surplus"
+    elif balance < 0:
+        cls, txt = "badge-red", "Shortfall"
+    else:
+        cls, txt = "badge-grey", "Balanced"
+
+    st.markdown(
+        f"""
+        <div class="material-card">
+            <div class="card-title">{title}</div>
+            <div class="card-value">{int(distributed)} / {int(required)}</div>
+            <span class="badge {cls}">{txt}: {abs(int(balance))}</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+# ======================================================
+# DATA LOADING
+# ======================================================
+@st.cache_data
+def load_data():
+    df = pd.read_excel("data.xlsx", sheet_name="Tooli")
+    df.columns = df.columns.str.strip()
+    df["State"] = df["State"].ffill()
+    df["Session_Division"] = df["Session_Division"].ffill()
+    numeric = [
+        "Required_Qty",
+        "Distributed_Qty",
+        "Balance_Qty",
+        "Courts_Count",
+        "Family_Courts",
+        "TJOs",
+        "Total_Courts",
+    ]
+    df[numeric] = df[numeric].apply(pd.to_numeric, errors="coerce").fillna(0)
+    return df
+
+
+# ======================================================
+# EXPORT
+# ======================================================
+def to_excel(df):
+    buf = BytesIO()
+    with pd.ExcelWriter(buf, engine="openpyxl") as writer:
+        df.to_excel(writer, index=False)
+    return buf.getvalue()
+
+
+# ======================================================
+# MAIN APP
+# ======================================================
 if check_password():
-    # ==========================================
-    # 🚀 MAIN DASHBOARD CODE STARTS HERE
-    # ==========================================
 
-    # --- 2. CSS Styling ---
-    st.markdown("""
-    <style>
-    /* Material 3 Card Container */
-    .metric-card {
-        background-color: #ffffff;
-        border-radius: 12px;
-        padding: 16px;
-        margin-bottom: 12px;
-        box-shadow:
-            0px 1px 2px rgba(0, 0, 0, 0.08),
-            0px 2px 6px rgba(0, 0, 0, 0.04);
-        transition: box-shadow 0.2s ease, transform 0.2s ease;
-        height: 100%;
-    }
-
-    .metric-card:hover {
-        box-shadow:
-            0px 2px 4px rgba(0, 0, 0, 0.12),
-            0px 6px 12px rgba(0, 0, 0, 0.08);
-        transform: translateY(-1px);
-    }
-
-    /* Material Typography */
-    .card-title {
-        color: #5f6368;
-        font-size: 13px;
-        font-weight: 500;
-        line-height: 1.4;
-        margin-bottom: 6px;
-    }
-
-    .card-value {
-        color: #1f1f1f;
-        font-size: 20px;
-        font-weight: 600;
-        line-height: 1.3;
-        margin-bottom: 10px;
-    }
-
-    /* Material 3 Badge (Assist Chip style) */
-    .badge {
-        padding: 4px 10px;
-        border-radius: 999px;
-        font-size: 12px;
-        font-weight: 500;
-        line-height: 1.2;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        white-space: nowrap;
-    }
-
-    .badge-green {
-        background-color: #e6f4ea;
-        color: #137333;
-    }
-
-    .badge-red {
-        background-color: #fce8e6;
-        color: #b3261e;
-    }
-
-    .badge-grey {
-        background-color: #f1f3f4;
-        color: #444746;
-    }
-</style>
-
-    """, unsafe_allow_html=True)
-
-    # --- 3. Data Loading ---
-    @st.cache_data
-    def load_data():
-        file_path = 'data.xlsx'
-        
-        try:
-            # Load the Tooli sheet
-            df = pd.read_excel(file_path, sheet_name='Tooli')
-            
-            # 1. Clean Column Headers
-            df.columns = df.columns.str.strip()
-            
-            # 2. Clean String Columns (Crucial for filtering)
-            string_cols = ['State', 'Session_Division', 'Location_Name', 'Location_Type', 'Hardware_Item', 'Status']
-            for col in string_cols:
-                if col in df.columns:
-                    df[col] = df[col].astype(str).str.strip()
-            
-            # 3. Fill Missing State/Division (Forward Fill)
-            if 'State' in df.columns:
-                df['State'] = df['State'].replace('nan', pd.NA).ffill()
-            if 'Session_Division' in df.columns:
-                df['Session_Division'] = df['Session_Division'].replace('nan', pd.NA).ffill()
-
-            # 4. Ensure Numeric Columns
-            cols_to_numeric = [
-                'Required_Qty', 'Distributed_Qty', 'Balance_Qty', 
-                'Courts_Count', 'Family_Courts', 'TJOs', 'Total_Courts'
-            ]
-            for col in cols_to_numeric:
-                if col in df.columns:
-                    df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
-                
-            return df
-        except Exception as e:
-            st.error(f"Error loading data: {e}")
-            return None
+    st.sidebar.title("Settings")
+    theme = st.sidebar.radio("Theme", ["Light", "Dark"], horizontal=True)
+    inject_material_theme(theme)
 
     df = load_data()
 
-    # --- 4. Helper Function to Render Cards ---
-    def render_card(title, value_top, value_bottom, balance):
-        # Determine Badge Color
-        if balance > 0:
-            badge_class = "badge-green"
-            status_text = "Surplus"
-        elif balance < 0:
-            badge_class = "badge-red"
-            status_text = "Shortfall"
-        else:
-            badge_class = "badge-grey"
-            status_text = "Balanced"
+    st.title("Court Inventory Dashboard")
 
-        # HTML Structure
-        html_code = f"""
-        <div class="metric-card">
-            <div class="card-title">{title}</div>
-            <div class="card-value">{int(value_top)} / {int(value_bottom)}</div>
-            <span class="badge {badge_class}">{status_text}: {int(abs(balance))}</span>
-        </div>
-        """
-        st.markdown(html_code, unsafe_allow_html=True)
+    states = ["All States"] + sorted(df["State"].unique().tolist())
+    sel_state = st.sidebar.selectbox("State", states)
+    data = df if sel_state == "All States" else df[df["State"] == sel_state]
 
-    # --- 5. Main App Layout ---
-    st.title("🏛️ Court Hardware Inventory Dashboard")
+    divisions = ["Overall Summary"] + sorted(data["Session_Division"].unique())
+    sel_div = st.sidebar.selectbox("Session Division", divisions)
 
-    if df is not None and not df.empty:
-        
-        # --- Sidebar Filters ---
-        st.sidebar.header("🔍 Filters")
-        
-        # State Filter
-        if 'State' in df.columns:
-            unique_states = ['All States'] + sorted(df['State'].unique().tolist())
-            selected_state = st.sidebar.selectbox("Select State", unique_states)
-            
-            if selected_state != 'All States':
-                state_df = df[df['State'] == selected_state]
-            else:
-                state_df = df
-        else:
-            state_df = df
+    if sel_div == "Overall Summary":
+        st.markdown("<div class='section-header'>Overall Summary</div>", unsafe_allow_html=True)
 
-        # Location Selector
-        if 'Location_Name' in state_df.columns:
-            unique_locations = sorted(state_df['Location_Name'].unique().tolist())
-            location_options = ['📊 Overall Summary'] + unique_locations
-            selected_location = st.selectbox("Select Location", location_options)
+        courts = data.drop_duplicates("Location_Name")
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            metric_card("Total Courts", int(courts["Total_Courts"].sum()), "court")
+        with c2:
+            metric_card("Regular Courts", int(courts["Courts_Count"].sum()))
+        with c3:
+            metric_card("Family Courts", int(courts["Family_Courts"].sum()))
+        with c4:
+            metric_card("TJOs", int(courts["TJOs"].sum()))
 
-            st.markdown("---")
+        hw = (
+            data.groupby("Hardware_Item")[
+                ["Distributed_Qty", "Required_Qty", "Balance_Qty"]
+            ]
+            .sum()
+            .reset_index()
+        )
 
-            # =========================================================
-            # VIEW 1: AGGREGATED SUMMARY
-            # =========================================================
-            if selected_location == '📊 Overall Summary':
-                st.header(f"Aggregated Status: {selected_state}")
-                
-                # --- 1. Calculate Aggregated Court Counts ---
-                unique_locs_df = state_df.drop_duplicates(subset=['Location_Name'])
-                
-                total_reg = unique_locs_df['Courts_Count'].sum()
-                total_fam = unique_locs_df['Family_Courts'].sum()
-                total_tjo = unique_locs_df['TJOs'].sum()
-                
-                if 'Total_Courts' in unique_locs_df.columns and unique_locs_df['Total_Courts'].sum() > 0:
-                    total_all = unique_locs_df['Total_Courts'].sum()
-                else:
-                    total_all = total_reg + total_fam + total_tjo
-                
-                # Display Top Metrics
-                m1, m2, m3, m4 = st.columns(4)
-                m1.metric("Total Courts", int(total_all))
-                m2.metric("Regular Courts", int(total_reg))
-                m3.metric("Family Courts", int(total_fam))
-                m4.metric("TJOs", int(total_tjo))
-                
-                st.markdown("---")
-                st.subheader("Hardware Breakdown")
-                
-                # --- 2. Hardware Cards ---
-                summary_df = state_df.groupby('Hardware_Item')[['Required_Qty', 'Distributed_Qty', 'Balance_Qty']].sum().reset_index()
-                
-                cols = st.columns(4)
-                for index, row in summary_df.iterrows():
-                    with cols[index % 4]:
-                        render_card(
-                            title=row['Hardware_Item'],
-                            value_top=row['Distributed_Qty'],
-                            value_bottom=row['Required_Qty'],
-                            balance=row['Balance_Qty']
-                        )
+        cols = st.columns(6)
+        for i, r in hw.iterrows():
+            with cols[i % 6]:
+                hardware_card(
+                    r["Hardware_Item"],
+                    r["Distributed_Qty"],
+                    r["Required_Qty"],
+                    r["Balance_Qty"],
+                )
 
-            # =========================================================
-            # VIEW 2: SPECIFIC LOCATION DETAIL
-            # =========================================================
-            else:
-                loc_data = state_df[state_df['Location_Name'] == selected_location]
-                
-                if not loc_data.empty:
-                    # 1. Metadata & Court Counts
-                    meta = loc_data.iloc[0]
-                    loc_type = meta.get('Location_Type', 'N/A')
-                    
-                    c_reg = int(meta.get('Courts_Count', 0))
-                    c_fam = int(meta.get('Family_Courts', 0))
-                    c_tjo = int(meta.get('TJOs', 0))
-                    c_total = int(meta.get('Total_Courts', c_reg + c_fam + c_tjo))
-                    
-                    # Header Info Bar
-                    c1, c2, c3, c4, c5 = st.columns(5)
-                    c1.info(f"**Type:** {loc_type}")
-                    c2.warning(f"**Total Cts:** {c_total}")
-                    c3.warning(f"**Reg. Courts:** {c_reg}")
-                    c4.warning(f"**Family Cts:** {c_fam}")
-                    c5.warning(f"**TJOs:** {c_tjo}")
+        st.dataframe(
+            data[
+                [
+                    "State",
+                    "Session_Division",
+                    "Location_Name",
+                    "Hardware_Item",
+                    "Required_Qty",
+                    "Distributed_Qty",
+                    "Balance_Qty",
+                    "Status",
+                ]
+            ],
+            use_container_width=True,
+            hide_index=True,
+        )
 
-                    # 2. Hardware Cards
-                    st.subheader(f"Hardware Status: {selected_location}")
-                    cols = st.columns(4)
-                    
-                    for index, (i, row) in enumerate(loc_data.iterrows()):
-                        with cols[index % 4]:
-                            render_card(
-                                title=row['Hardware_Item'],
-                                value_top=row['Distributed_Qty'],
-                                value_bottom=row['Required_Qty'],
-                                balance=row['Balance_Qty']
-                            )
-                    
-                    # 3. Detailed Data Table
-                    st.markdown("### 📋 Detailed Data")
-                    cols_to_show = ['Hardware_Item', 'Required_Qty', 'Distributed_Qty', 'Balance_Qty', 'Status']
-                    final_cols = [c for c in cols_to_show if c in loc_data.columns]
-                    
-                    def highlight_status(val):
-                        if val == 'Shortfall': return 'background-color: #ffcccc; color: darkred'
-                        elif val == 'Surplus': return 'background-color: #ccffcc; color: darkgreen'
-                        return ''
-
-                    if 'Status' in final_cols:
-                        st.dataframe(
-                            loc_data[final_cols].style.map(highlight_status, subset=['Status']),
-                            use_container_width=True,
-                            hide_index=True
-                        )
-                    else:
-                        st.dataframe(loc_data[final_cols], use_container_width=True)
-                else:
-                    st.error(f"No data found for location: '{selected_location}'")
-
-        else:
-            st.error("Column 'Location_Name' not found in Excel file.")
-    else:
-        st.error("Could not load data. Please ensure 'data.xlsx' is in the folder.")
+    st.markdown("<div class='section-header'>Download</div>", unsafe_allow_html=True)
+    st.download_button(
+        "Download Excel",
+        data=to_excel(data),
+        file_name="inventory.xlsx",
+    )
