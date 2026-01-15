@@ -34,7 +34,7 @@ if check_password():
         st.session_state.dark_mode = False
     
     # ========================================== 
-    # ✨ MATERIAL YOU DYNAMIC STYLING
+    # ✨ BREEZE DASHBOARD STYLING (Custom Colors)
     # ========================================== 
     def get_material_you_css(dark_mode):
         if dark_mode:
@@ -45,10 +45,14 @@ if check_password():
                 'bg_tertiary': '#3a3d41',
                 'surface': '#2b2d30',
                 'surface_variant': '#43474e',
-                'primary': '#a8c7fa',
-                'primary_container': '#004a77',
-                'secondary': '#b8c8df',
-                'secondary_container': '#3c4858',
+                'primary': '#423ABE',
+                'primary_container': '#2f2890',
+                'secondary': '#00CCCD',
+                'secondary_container': '#008b8c',
+                'accent_yellow': '#FFC107',
+                'accent_pink': '#DC3545',
+                'accent_green': '#198754',
+                'accent_blue': '#0D6EFD',
                 'success': '#81c784',
                 'success_container': '#1b5e20',
                 'error': '#f28b82',
@@ -62,24 +66,28 @@ if check_password():
         else:
             # Light Mode Palette
             colors = {
-                'bg_primary': '#fef7ff',
-                'bg_secondary': '#f7f2fa',
-                'bg_tertiary': '#eaddff',
+                'bg_primary': '#f8f9fa',
+                'bg_secondary': '#ffffff',
+                'bg_tertiary': '#e9ecef',
                 'surface': '#ffffff',
-                'surface_variant': '#e7e0ec',
-                'primary': '#6750a4',
-                'primary_container': '#eaddff',
-                'secondary': '#625b71',
-                'secondary_container': '#e8def8',
-                'success': '#2e7d32',
-                'success_container': '#c8e6c9',
-                'error': '#ba1a1a',
-                'error_container': '#ffdad6',
-                'text_primary': '#1c1b1f',
-                'text_secondary': '#49454f',
-                'text_tertiary': '#79747e',
-                'border': '#cac4d0',
-                'shadow': 'rgba(0, 0, 0, 0.15)',
+                'surface_variant': '#f1f3f5',
+                'primary': '#423ABE',
+                'primary_container': '#e8e6f7',
+                'secondary': '#00CCCD',
+                'secondary_container': '#e0f7f7',
+                'accent_yellow': '#FFC107',
+                'accent_pink': '#DC3545',
+                'accent_green': '#198754',
+                'accent_blue': '#0D6EFD',
+                'success': '#198754',
+                'success_container': '#d4edda',
+                'error': '#DC3545',
+                'error_container': '#f8d7da',
+                'text_primary': '#212529',
+                'text_secondary': '#495057',
+                'text_tertiary': '#6c757d',
+                'border': '#dee2e6',
+                'shadow': 'rgba(0, 0, 0, 0.1)',
             }
         
         return f"""
@@ -290,17 +298,44 @@ if check_password():
         return output.getvalue()
     
     def render_material_card(title, value_top, value_bottom, balance):
+        # Assign color based on hardware item
+        color_map = {
+            0: 'card-yellow',
+            1: 'card-pink',
+            2: 'card-blue',
+            3: 'card-green',
+            4: 'card-purple',
+            5: 'card-cyan'
+        }
+        
+        # Icon map for hardware items
+        icon_map = {
+            0: '💻',
+            1: '📊',
+            2: '🖥️',
+            3: '🔌',
+            4: '⚙️',
+            5: '📡'
+        }
+        
+        # Get a consistent color based on the title
+        color_index = hash(title) % 6
+        card_color = color_map[color_index]
+        card_icon = icon_map[color_index]
+        
         if balance > 0:
-            b_class, b_text = "badge-green", "Surplus"
+            b_class, b_text = "badge-green", "✓ Surplus"
         elif balance < 0:
-            b_class, b_text = "badge-red", "Shortfall"
+            b_class, b_text = "badge-red", "⚠ Shortfall"
         else:
-            b_class, b_text = "badge-grey", "Balanced"
+            b_class, b_text = "badge-grey", "● Balanced"
         
         html = f"""
-        <div class="material-card">
+        <div class="material-card {card_color}">
+            <div class="card-icon">{card_icon}</div>
             <div class="card-title">{title}</div>
-            <div class="card-value">{int(value_top)} / {int(value_bottom)}</div>
+            <div class="card-value">${int(value_top):,}</div>
+            <div class="card-subtitle">Required: ${int(value_bottom):,}</div>
             <span class="badge {b_class}">{b_text}: {int(abs(balance))}</span>
         </div>
         """
